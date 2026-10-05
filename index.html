@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Bilingual Random Card Generator</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --text-main: #1f2937;
+            --text-sub: #4b5563;
+            --card-back: #4f46e5;
+            --card-front: #ffffff;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: var(--text-main);
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            color: var(--text-sub);
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.secondary {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        button.secondary:hover {
+            background-color: #d1d5db;
+        }
+
+        .stats {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .deck-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 1200px;
+            perspective: 1000px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 1024px) {
+            .deck-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .deck-container {
+                grid-template-columns: repeat(1, 1fr);
+            }
+        }
+
+        .card-wrapper {
+            height: 320px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+        }
+
+        .card-wrapper.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: white;
+        }
+
+        .card-back-pattern {
+            width: 80%;
+            height: 80%;
+            border: 2px dashed rgba(255,255,255,0.4);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .card-front {
+            background-color: var(--card-front);
+            color: var(--text-main);
+            transform: rotateY(180deg);
+            justify-content: flex-start;
+            overflow-y: auto;
+        }
+
+        .card-id {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            align-self: flex-start;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .text-zh {
+            font-size: 1.05rem;
+            font-weight: 600;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            color: #111827;
+        }
+
+        .text-en {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: #4b5563;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bilingual Question Cards Generator</h1>
+        <p class="subtitle">Designed for custom 35-card deck</p>
+    </header>
+
+    <div class="controls">
+        <button id="dealBtn">Deal 5 Cards</button>
+        <button id="resetBtn" class="secondary">Reset Deck</button>
+        <div class="stats" id="statsDisplay">Remaining: 35/35</div>
+    </div>
+
+    <div class="deck-container" id="deckContainer"></div>
+
+    <script>
+        const originalCards = [
+            { id: 1, zh: "最近有沒有誰說過一句話，或做過一件事，讓你覺得“他真的懂我”？", en: "Has someone recently said or done something that made you feel truly understood?" },
+            { id: 2, zh: "你會如何形容你在家庭中所扮演的角色？家庭成員也是這樣看待你嗎？", en: "How would you describe your role in the family? Do your family member see it the same way?" },
+            { id: 3, zh: "大家認為你有哪些相似之處呢？特質、個性或是談吐。（由所有的玩家回應抽卡人。）", en: "What similarities do others see between you and them (all players answer)" },
+            { id: 4, zh: "描述一次你克服恐懼的經歷，當時發生了什麼？", en: "Share a time you faced and conquered the fear. What happened?" },
+            { id: 5, zh: "你覺得自己身上最值得驕傲的特質是什麼？", en: "What's a personal trait you're most proud of?" },
+            { id: 6, zh: "大家會如何向陌生人介紹我呢？（由所有玩家回應抽卡人）", en: "How would the people here describe you to a stranger? (all players answer)" },
+            { id: 7, zh: "你會如何表達關心或在乎？身邊的人都能收到嗎？", en: "How do you express care and affection? Do people around you recognize it?" },
+            { id: 8, zh: "什麼樣的行為最令你憤怒？你都如何表達憤怒？", en: "What behaviors upset you the most? How do you usually express anger?" },
+            { id: 9, zh: "分享一個現在生活中最喜歡的部分？他滿足了你內心什麼樣的需求？", en: "What do you love most about your life currently? How does it fulfill you?" },
+            { id: 10, zh: "如果不會被嘲笑或反對，你最想完成什麼事情？", en: "If nobody judged or opposed you, what would you want to accomplish?" },
+            { id: 11, zh: "什麼事是你知道要改變，但總是告訴自己還有時間？", en: "What's something you know you should change but keep telling yourself there's still time?" },
+            { id: 12, zh: "請大家分享最想對你說的一句話，可以是感謝、稱讚或祝福。（由所有玩家回應抽卡人）", en: "Everyone shares a message for the card-drawer: a thank you, a compliment, or a blessing." },
+            { id: 13, zh: "如果你能瞬間掌握一種才藝，你會選什麼？", en: "If you could instantly master a skill, what would it be?" },
+            { id: 14, zh: "關於童年，你最難忘的記憶是什麼？", en: "What's a childhood memory that has stayed with you?" },
+            { id: 15, zh: "你覺得維持一段友誼最重要的元素是什麼？", en: "What do you think is the most important factor in maintaining a friendship?" },
+            { id: 16, zh: "送大家你最喜歡的一段話，它如何影響你？", en: "Share a quote you love and how it has influenced you." },
+            { id: 17, zh: "邀請大家說說對你的第一印象？（由所有玩家回應抽卡人）", en: "Everyone shares their first impression of the card-drawer!" },
+            { id: 18, zh: "你認為最能讓你放鬆或療癒的事情是什麼？", en: "What helps you relax or feel at peace the most?" },
+            { id: 19, zh: "你覺得自己在社交中最大的優勢是什麼？", en: "What's your biggest strength in social situations?" },
+            { id: 20, zh: "如果能夠回到某個特定年齡，你會想回到幾歲？", en: "If you could go back to a certain age, which one would you choose?" },
+            { id: 21, zh: "你覺得自己比較像外向還是內向的人？有沒有具體的例子？", en: "Do you see yourself as more introverted or extroverted? Share an example!" },
+            { id: 22, zh: "有沒有一本書或哪一部電影，讓你看完印象深刻？", en: "Is there a book or movie that left a deep impression on you?" },
+            { id: 23, zh: "你最喜歡收到什麼樣的禮物？", en: "What kind of gift do you love receiving the most?" },
+            { id: 24, zh: "如果可以跟任何一位名人一起吃飯，你會選誰？", en: "If you could have dinner with any celebrity, who would it be?" },
+            { id: 25, zh: "分享一個最近讓你感到幸運的事情。", en: "Talk about something that made you feel lucky recently." },
+            { id: 26, zh: "分享一個最近讓你覺得好好笑或開心的時刻。", en: "Share something that made you laugh or feel happy recently" },
+            { id: 27, zh: "小時候最喜歡的一部卡通或動畫是什麼？", en: "What was your favorite cartoon or anime as a kid?" },
+            { id: 28, zh: "你認為你的形象是什麼？你做過什麼與形象不符的事（所有玩家回答）。", en: "How do you think people see you? Have you ever done something totally opposite of that?" },
+            { id: 29, zh: "所有玩家想出三個代表自己的標籤，並順時針逐一分享選擇的原因！", en: "Everyone thinks of three words that represent them and takes turns sharing their reason!" },
+            { id: 30, zh: "有沒有哪件事當時讓你感到難過，但現在回想起來已經可以微笑面對？", en: "Is there something that once hurts but now makes you smile?" },
+            { id: 31, zh: "你認為一段理想的友誼，需要具備哪些特質？為什麼？", en: "What qualities do you think are essential for a great friendship? Why?" },
+            { id: 32, zh: "學習之餘，你最常做的休閒活動是什麼？", en: "What's your favorite leisure activity outside of study?" },
+            { id: 33, zh: "所有玩家分享平常你都是如何表達對他人的關愛？", en: "Share how you usually express caring in your daily life." },
+            { id: 34, zh: "自開學至今，有什麼特別的回憶嗎？", en: "From the first day of school, are there any special memories?" },
+            { id: 35, zh: "描述一次你覺得被肯定的時刻（精準地說出你的特質和優點）？", en: "Describe a time when your strengths and qualities were truly recognized and learn from it." }
+        ];
+
+        let pool = [...originalCards];
+
+        const deckContainer = document.getElementById('deckContainer');
+        const dealBtn = document.getElementById('dealBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statsDisplay = document.getElementById('statsDisplay');
+
+        function updateStats() {
+            statsDisplay.textContent = `Remaining: ${pool.length}/${originalCards.length}`;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function dealCards() {
+            deckContainer.innerHTML = '';
+            
+            if (pool.length < 5) {
+                alert('Not enough cards left in the deck! Resetting deck automatically.');
+                resetDeck();
+            }
+
+            shuffle(pool);
+            const selected = pool.splice(0, 5);
+            updateStats();
+
+            selected.forEach((card, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-wrapper';
+                
+                wrapper.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-face card-back">
+                            <div class="card-back-pattern">?</div>
+                        </div>
+                        <div class="card-face card-front">
+                            <div class="card-id">CARD #${card.id}</div>
+                            <div class="text-zh">${card.zh}</div>
+                            <div class="text-en">${card.en}</div>
+                        </div>
+                    </div>
+                `;
+
+                wrapper.addEventListener('click', function() {
+                    this.classList.toggle('flipped');
+                });
+
+                deckContainer.appendChild(wrapper);
+            });
+        }
+
+        function resetDeck() {
+            pool = [...originalCards];
+            deckContainer.innerHTML = '';
+            updateStats();
+        }
+
+        dealBtn.addEventListener('click', dealCards);
+        resetBtn.addEventListener('click', resetDeck);
+
+        // Initial setup
+        resetDeck();
+    </script>
+</body>
+</html>
